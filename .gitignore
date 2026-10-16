@@ -1,0 +1,27 @@
+# Dependências e arquivos locais
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+
+# Ferramentas de trabalho (não fazem parte do site)
+.agents/
+.codex/
+.impeccable/
+.superdesign/
+.superpowers/
+docs/superpowers/
+
+# Evidências locais geradas pelos testes
+docs/*-capturas/
+docs/wireframe-capturas/
+playwright-report/
+test-results/
+
+# Assets legados não utilizados; preservados localmente
+assets/hero-rural.png
+assets/hp-engenharia-logo.png
+assets/hp-engenharia-logo-transparent.png

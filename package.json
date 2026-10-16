@@ -3,9 +3,11 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/build-static.mjs",
+    "deploy": "npx wrangler deploy",
+    "preview": "npm run build && npx wrangler dev",
     "check": "tsc --noEmit",
-    "test": "node --test tests/site.test.mjs"
+    "test": "node --test tests/site.test.mjs tests/build.test.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

@@ -42,4 +42,15 @@ O workflow `.github/workflows/validate.yml` executa instalação reproduzível, 
 
 ## Publicação estática
 
-O site não precisa de servidor Node em produção. Envie `index.html`, `styles.css`, `script.js` e `assets/` para a raiz da hospedagem. Os caminhos relativos também permitem hospedar em um subdiretório. Execute `npm run build` sempre que alterar `src/` e inclua o `script.js` atualizado no commit.
+O site não precisa de servidor Node em produção. Execute `npm run build`: o TypeScript é compilado e a pasta `dist/` é recriada com apenas os nove arquivos públicos necessários. Publique o conteúdo de `dist/`. Fontes, dependências, documentação e imagens legadas ficam fora dessa pasta. Inclua o `script.js` atualizado no commit; `dist/` é gerada no build e ignorada pelo Git.
+
+### Cloudflare Workers
+
+O arquivo `wrangler.jsonc` configura o Worker `hpengenaria2` e publica somente `./dist`. O Wrangler executa `npm run build` antes do deploy, mesmo quando o painel não define um comando de build separado.
+
+- Diretório raiz do projeto: raiz do repositório.
+- Comando de build (se solicitado no painel): `npm run build`.
+- Comando de deploy: `npx wrangler deploy`.
+- Diretório de saída/assets: `dist` (nunca `.`).
+
+Para deploy local autenticado: `npm run deploy`. Para prévia do Worker: `npm run preview`. O npx fornece o Wrangler, sem incluir uma nova dependência na aplicação. Em Cloudflare Pages, use `npm run build` e saída `dist`, sem comando de deploy do Wrangler.

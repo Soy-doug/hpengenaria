@@ -110,16 +110,20 @@ function initNavigation() {
         setOpen(false); });
 }
 function initContactForm() {
-    const form = element('#contact-form');
-    const phone = element('#telefone');
-    phone.addEventListener('input', () => {
-        const digits = phone.value.replace(/\D/g, '').slice(0, 11);
-        const area = digits.slice(0, 2);
-        const boundary = digits.length > 10 ? 7 : 6;
-        const first = digits.slice(2, boundary);
-        const last = digits.slice(boundary);
-        phone.value = (area ? '(' + area + ')' : '') + (first ? ' ' + first : '') + (last ? '-' + last : '');
-    });
+    const form = document.querySelector('#contact-form');
+    if (!form)
+        return;
+    const phone = form.querySelector('#telefone');
+    if (phone) {
+        phone.addEventListener('input', () => {
+            const digits = phone.value.replace(/\D/g, '').slice(0, 11);
+            const area = digits.slice(0, 2);
+            const boundary = digits.length > 10 ? 7 : 6;
+            const first = digits.slice(2, boundary);
+            const last = digits.slice(boundary);
+            phone.value = (area ? '(' + area + ')' : '') + (first ? ' ' + first : '') + (last ? '-' + last : '');
+        });
+    }
     form.addEventListener('submit', event => {
         event.preventDefault();
         if (!form.reportValidity())
@@ -226,30 +230,141 @@ function initHashAlignment() {
 }
 function initCompactHeader() {
     const header = element('.site-header');
-    const topbar = element('.topbar');
-    const desktop = window.matchMedia('(min-width: 1001px)');
+    const topbar = header.querySelector('.topbar');
     let scheduled = false;
     const update = () => {
-        const compact = header.classList.contains('is-compact');
-        header.classList.toggle('is-compact', desktop.matches && window.scrollY > (compact ? 80 : 120));
+        header.classList.toggle('is-compact', window.scrollY > 40);
         scheduled = false;
     };
     const measureTopbar = () => {
-        header.style.setProperty('--topbar-height', topbar.getBoundingClientRect().height + 'px');
+        if (topbar) {
+            header.style.setProperty('--topbar-height', `${topbar.getBoundingClientRect().height}px`);
+        }
     };
     measureTopbar();
-    if ('ResizeObserver' in window)
+    if (topbar && 'ResizeObserver' in window)
         new ResizeObserver(measureTopbar).observe(topbar);
     window.addEventListener('scroll', () => {
-        if (!desktop.matches)
-            return;
         if (!scheduled) {
             scheduled = true;
             window.requestAnimationFrame(update);
         }
     }, { passive: true });
-    desktop.addEventListener('change', update);
     update();
+}
+function initFloatingWhatsapp() {
+    const btn = document.getElementById('floating-whatsapp');
+    const footer = document.querySelector('.site-footer');
+    if (!btn || !footer || !('IntersectionObserver' in window))
+        return;
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            btn.classList.toggle('is-hidden', entry.isIntersecting);
+        });
+    }, { threshold: 0.05 });
+    observer.observe(footer);
+}
+const HERO_BASE_TITLE = 'Soluções técnicas para';
+const HERO_COMPLEMENTS = [
+    'quem vive e produz no campo.',
+    'a regularização da sua propriedade.',
+    'licenciamento e gestão ambiental.',
+    'produzir mais e melhor no campo.',
+    'assistência técnica rural contínua.',
+    'o planejamento da sua fazenda.',
+    'o sucesso do seu negócio rural.',
+];
+function initHeroTitleAnimation() {
+    const title = document.getElementById('hero-title');
+    const rotatorText = title?.querySelector('.hero-rotator-text');
+    if (!title || !rotatorText)
+        return;
+    const titleEl = title;
+    const textEl = rotatorText;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let currentIndex = 0;
+    let timerId = null;
+    let isTransitioning = false;
+    let isPaused = false;
+    const HOLD_MS = 4600;
+    const EXIT_MS = 450;
+    const ENTER_MS = 500;
+    function stopTimer() {
+        if (timerId !== null) {
+            window.clearTimeout(timerId);
+            timerId = null;
+        }
+    }
+    function scheduleNext() {
+        stopTimer();
+        if (reducedMotion.matches || document.hidden || isPaused)
+            return;
+        timerId = window.setTimeout(nextPhrase, HOLD_MS);
+    }
+    function nextPhrase() {
+        if (reducedMotion.matches || document.hidden || isPaused || isTransitioning)
+            return;
+        isTransitioning = true;
+        textEl.classList.remove('is-entering', 'is-pre-enter');
+        textEl.classList.add('is-exiting');
+        window.setTimeout(() => {
+            currentIndex = (currentIndex + 1) % HERO_COMPLEMENTS.length;
+            const complement = HERO_COMPLEMENTS[currentIndex];
+            textEl.textContent = complement;
+            titleEl.setAttribute('aria-label', `${HERO_BASE_TITLE} ${complement}`);
+            textEl.classList.remove('is-exiting');
+            textEl.classList.add('is-pre-enter');
+            void textEl.offsetHeight;
+            textEl.classList.remove('is-pre-enter');
+            textEl.classList.add('is-entering');
+            window.setTimeout(() => {
+                textEl.classList.remove('is-entering');
+                isTransitioning = false;
+                scheduleNext();
+            }, ENTER_MS);
+        }, EXIT_MS);
+    }
+    titleEl.addEventListener('mouseenter', () => {
+        isPaused = true;
+        stopTimer();
+    });
+    titleEl.addEventListener('mouseleave', () => {
+        isPaused = false;
+        if (!isTransitioning) {
+            scheduleNext();
+        }
+    });
+    titleEl.addEventListener('focusin', () => {
+        isPaused = true;
+        stopTimer();
+    });
+    titleEl.addEventListener('focusout', () => {
+        isPaused = false;
+        if (!isTransitioning) {
+            scheduleNext();
+        }
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            stopTimer();
+        }
+        else if (!isPaused) {
+            scheduleNext();
+        }
+    });
+    reducedMotion.addEventListener('change', () => {
+        if (reducedMotion.matches) {
+            stopTimer();
+            currentIndex = 0;
+            textEl.textContent = HERO_COMPLEMENTS[0];
+            titleEl.setAttribute('aria-label', `${HERO_BASE_TITLE} ${HERO_COMPLEMENTS[0]}`);
+            textEl.className = 'hero-rotator-text';
+        }
+        else {
+            scheduleNext();
+        }
+    });
+    scheduleNext();
 }
 function initMotion() {
     if (!('IntersectionObserver' in window) || !('animate' in HTMLElement.prototype))
@@ -280,7 +395,7 @@ function initMotion() {
                 enter(target, Math.min(index * 90, 180), 16, 1000);
         });
     }
-    const groups = ['.solution-card', '.process-steps li', '.about-photo,.about-copy', '.contact-content>div,.contact-content>.button'];
+    const groups = ['.solutions-heading', '.process-steps li', '.about-photo,.about-copy', '.contact-content>div,.contact-content>.button'];
     const delays = new Map();
     groups.forEach(selector => document.querySelectorAll(selector).forEach((target, index) => delays.set(target, index * 120)));
     let remaining = delays.size;
@@ -313,10 +428,205 @@ function initMotion() {
     if (reduced.matches || lowCapacity)
         stop();
 }
+function initCardDeckSolutions() {
+    const anchor = document.getElementById('solutions-anchor');
+    const stage = document.getElementById('solutions-stage');
+    const viewport = document.getElementById('deck-viewport');
+    const track = document.getElementById('deck-track');
+    const rangeText = document.getElementById('deck-card-range');
+    const btnPrev = document.getElementById('deck-prev-btn');
+    const btnNext = document.getElementById('deck-next-btn');
+    const pagination = document.getElementById('deck-pagination');
+    if (!anchor || !stage || !viewport || !track)
+        return;
+    const anchorEl = anchor;
+    const stageEl = stage;
+    const viewportEl = viewport;
+    const trackEl = track;
+    const rangeTextEl = rangeText;
+    const paginationEl = pagination;
+    const cards = Array.from(trackEl.querySelectorAll('.solution-card'));
+    const totalCards = cards.length;
+    if (totalCards === 0)
+        return;
+    const CARDS_PER_VIEW = 4;
+    const MAX_STEP = Math.max(0, totalCards - CARDS_PER_VIEW);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let currentStep = 0;
+    let isMobile = window.innerWidth <= 960;
+    let scheduled = false;
+    const dots = [];
+    if (paginationEl) {
+        paginationEl.innerHTML = '';
+        for (let i = 0; i <= MAX_STEP; i++) {
+            const dot = document.createElement('button');
+            dot.type = 'button';
+            dot.className = 'deck-dot' + (i === 0 ? ' is-active' : '');
+            dot.setAttribute('aria-label', `Ver serviços ${i + 1} a ${i + 4}`);
+            dot.addEventListener('click', () => {
+                goToStep(i);
+                syncScrollPosition(i);
+            });
+            paginationEl.appendChild(dot);
+            dots.push(dot);
+        }
+    }
+    function syncScrollPosition(step) {
+        if (isMobile || reducedMotion.matches)
+            return;
+        const maxScroll = anchorEl.offsetHeight - window.innerHeight;
+        if (maxScroll <= 0)
+            return;
+        const anchorTop = anchorEl.getBoundingClientRect().top + window.scrollY;
+        const targetScrollY = anchorTop + (step / MAX_STEP) * maxScroll;
+        window.scrollTo({ top: targetScrollY, behavior: 'smooth' });
+    }
+    function goToStep(step, animateDeal = true) {
+        currentStep = Math.max(0, Math.min(MAX_STEP, step));
+        if (isMobile) {
+            dots.forEach((dot, idx) => dot.classList.toggle('is-active', idx === currentStep));
+            return;
+        }
+        const gap = 24;
+        const cardWidth = (viewportEl.clientWidth - (CARDS_PER_VIEW - 1) * gap) / CARDS_PER_VIEW;
+        const shift = currentStep * (cardWidth + gap);
+        trackEl.style.transform = `translateX(-${shift}px)`;
+        cards.forEach((card, idx) => {
+            if (idx < currentStep) {
+                card.classList.add('is-discarded');
+                card.classList.remove('is-dealt');
+            }
+            else if (idx >= currentStep && idx < currentStep + CARDS_PER_VIEW) {
+                card.classList.remove('is-discarded');
+                if (idx === currentStep + CARDS_PER_VIEW - 1 && animateDeal) {
+                    card.classList.remove('is-dealt');
+                    void card.offsetWidth;
+                    card.classList.add('is-dealt');
+                }
+                else {
+                    card.classList.remove('is-dealt');
+                }
+            }
+            else {
+                card.classList.remove('is-discarded', 'is-dealt');
+            }
+        });
+        if (rangeTextEl) {
+            const deckLabel = document.querySelector('.deck-label');
+            if (isMobile) {
+                if (deckLabel)
+                    deckLabel.textContent = 'Serviço';
+                rangeTextEl.textContent = `${String(currentStep + 1).padStart(2, '0')}`;
+            }
+            else {
+                if (deckLabel)
+                    deckLabel.textContent = 'Serviços';
+                const startNum = String(currentStep + 1).padStart(2, '0');
+                const endNum = String(currentStep + CARDS_PER_VIEW).padStart(2, '0');
+                rangeTextEl.textContent = `${startNum}–${endNum}`;
+            }
+        }
+        if (btnPrev)
+            btnPrev.disabled = currentStep === 0;
+        if (btnNext)
+            btnNext.disabled = currentStep === MAX_STEP;
+        dots.forEach((dot, idx) => dot.classList.toggle('is-active', idx === currentStep));
+    }
+    function recalculateLayout() {
+        isMobile = window.innerWidth <= 960;
+        if (isMobile || reducedMotion.matches) {
+            anchorEl.style.height = '';
+            trackEl.style.transform = '';
+            cards.forEach(card => card.classList.remove('is-discarded', 'is-dealt'));
+            return;
+        }
+        const scrollRange = (MAX_STEP + 1) * 400;
+        anchorEl.style.height = `${window.innerHeight + scrollRange}px`;
+        goToStep(currentStep, false);
+    }
+    function onWindowScroll() {
+        if (isMobile || reducedMotion.matches)
+            return;
+        const rect = anchorEl.getBoundingClientRect();
+        const scrollInside = -rect.top;
+        const maxScroll = anchorEl.offsetHeight - window.innerHeight;
+        if (maxScroll <= 0)
+            return;
+        if (scrollInside >= 0 && scrollInside <= maxScroll) {
+            const progress = scrollInside / maxScroll;
+            const targetStep = Math.min(MAX_STEP, Math.max(0, Math.floor(progress * (MAX_STEP + 0.99))));
+            if (targetStep !== currentStep) {
+                goToStep(targetStep, true);
+            }
+        }
+        else if (scrollInside < 0 && currentStep !== 0) {
+            goToStep(0, false);
+        }
+        else if (scrollInside > maxScroll && currentStep !== MAX_STEP) {
+            goToStep(MAX_STEP, false);
+        }
+    }
+    if (btnNext) {
+        btnNext.addEventListener('click', () => {
+            if (isMobile) {
+                const cardWidth = cards[0]?.offsetWidth ?? 300;
+                viewportEl.scrollBy({ left: cardWidth + 16, behavior: 'smooth' });
+            }
+            else if (currentStep < MAX_STEP) {
+                const next = currentStep + 1;
+                goToStep(next, true);
+                syncScrollPosition(next);
+            }
+        });
+    }
+    if (btnPrev) {
+        btnPrev.addEventListener('click', () => {
+            if (isMobile) {
+                const cardWidth = cards[0]?.offsetWidth ?? 300;
+                viewportEl.scrollBy({ left: -(cardWidth + 16), behavior: 'smooth' });
+            }
+            else if (currentStep > 0) {
+                const prev = currentStep - 1;
+                goToStep(prev, false);
+                syncScrollPosition(prev);
+            }
+        });
+    }
+    viewportEl.addEventListener('scroll', () => {
+        if (!isMobile)
+            return;
+        const cardWidth = (cards[0]?.offsetWidth ?? 300) + 16;
+        const active = Math.min(totalCards - 1, Math.max(0, Math.round(viewportEl.scrollLeft / cardWidth)));
+        if (rangeTextEl)
+            rangeTextEl.textContent = `${String(active + 1).padStart(2, '0')}`;
+        const maxLeft = viewportEl.scrollWidth - viewportEl.clientWidth;
+        if (btnPrev)
+            btnPrev.disabled = viewportEl.scrollLeft <= 8;
+        if (btnNext)
+            btnNext.disabled = viewportEl.scrollLeft >= maxLeft - 8;
+    }, { passive: true });
+    window.addEventListener('scroll', () => {
+        if (!isMobile && !reducedMotion.matches) {
+            if (!scheduled) {
+                scheduled = true;
+                window.requestAnimationFrame(() => {
+                    onWindowScroll();
+                    scheduled = false;
+                });
+            }
+        }
+    }, { passive: true });
+    window.addEventListener('resize', recalculateLayout);
+    recalculateLayout();
+    goToStep(0, false);
+}
 configureContent();
 initNavigation();
 initContactForm();
 initGallery();
 initHashAlignment();
 initCompactHeader();
+initFloatingWhatsapp();
+initHeroTitleAnimation();
+initCardDeckSolutions();
 initMotion();
